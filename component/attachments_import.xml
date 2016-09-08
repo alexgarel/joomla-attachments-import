@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<extension type="component" version="3.6" method="upgrade">
+    <name>com_attachments_import</name>
+    <version>0.1.0</version>
+    <creationDate>2016-08-08</creationDate>
+    <author>alex garel</author>
+    <authorEmail>alex@garel.org</authorEmail>
+    <license>GNU/GPL v3</license>
+    <description>A specific plugin to create articles with attachements</description>
+
+    <administration>
+        <menu>COM_ATTACHMENTS_IMPORT</menu>
+
+        <files>
+            <filename>admin/attachments_import.php</filename>
+            <filename>admin/controller.php</filename>
+            <filename>admin/index.html</filename>
+            <filename>index.html</filename>
+            <folder>admin/helpers</folder>
+            <folder>language</folder>
+        </files>
+
+    </administration>
+</extension>
