@@ -33,9 +33,46 @@ class AttachmentsimportModelAttachmentsimport extends JModelLegacy
 	 */
 	protected $_context = 'com_installer.install';
 
-	public function import()
+	protected function iterdata($fpath) {
+		// check file exists
+		if (!file_exists($fpath)) {
+			JLog::add('File ' . $fpath . ' does not exists !', JLog::ERROR, 'jerror');
+			$handle = null;
+		}
+		// open file
+		$handle = fopen($fpath, 'r');
+		$lineNum = 0;
+		$blank = array(null);
+		do
+		{
+			$data = false;
+			$entry = fgets($handle);
+			$lineNum += 1;
+			if ($entry) {
+				$data = json_decode($entry, true);
+			}
+			if ($data) {
+				yield $data;
+			}
+			elseif ($entry)  // means wrong json
+			{
+				JLog::add('Malformed json at line ' . $lineNum. ' : ' . json_last_error_msg(),
+						  JLog::WARNING, 'jerror');
+			}
+		} while ($entry);
+	}
+
+	public function import($fpath)
 	{
-		JLog::add('Non implémenté !', JLog::WARNING, 'jerror');
+		$id_map = array();
+
+		foreach ($this->iterdata($fpath) as  $data) {
+
+			// get type
+			// get id
+
+		}
+		JLog::add('Not implemented !', JLog::WARNING, 'jerror');
 		return false;
 	}
 }

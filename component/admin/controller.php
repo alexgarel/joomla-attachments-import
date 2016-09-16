@@ -25,12 +25,19 @@ class AttachmentsimportController extends JControllerLegacy
 	{
 		// Check for request forgeries.
 		JSession::checkToken() or jexit(JText::_('JINVALID_TOKEN'));
+		$valid_params = true;
 
-		$model = $this->getModel('attachmentsimport');
+		$app = JFactory::getApplication();
 
-		$result = $model->import();
+		// get path
+		$fpath = $app->input->get('import_file', false, 'string');
 
-		if ($result)
+		if ($fpath) {
+			$model = $this->getModel('attachmentsimport');
+			$result = $model->import($fpath);
+		}
+
+		if ($fpath && $result)
 		{
 			JLog::add('Import réalisé avec succès !', JLog::INFO, 'jerror');
 		}
