@@ -9,6 +9,7 @@
 defined('_JEXEC') or die;
 jimport('joomla.log.log');
 
+use Joomla\Input\Input;
 /**
  * Attachments import model
  *
@@ -52,6 +53,7 @@ class AttachmentsimportModelAttachmentsimport extends JModelLegacy
 				$data = json_decode($entry, true);
 			}
 			if ($data) {
+				$data["_linenum"] = $lineNum;
 				yield $data;
 			}
 			elseif ($entry)  // means wrong json
@@ -62,14 +64,90 @@ class AttachmentsimportModelAttachmentsimport extends JModelLegacy
 		} while ($entry);
 	}
 
+	public function createContent($data, $name, $model, $fpath)
+	{
+		$id = null;
+		$fields = $data["fields"];
+		# FIXME
+		$fields["catid"] = 2;
+
+		// trick app input
+		$savedInput = $app->input;
+		$contentSource = array();
+		$app->input = new Input($contentSource);  // source & options
+		$app->input->set("task", "save");
+		// use a form to validate and get all values
+		$form = new JForm($name);
+		$form->loadFile($fpath);
+		$lineNum = $data["_linenum"] || "?";
+
+		if ($form->validate($fields))
+		{
+			$fdata = array();
+			foreach ($form->getFieldSet() as $field) {
+				$fname = $field->name;
+				if (key_exists($fname, $fields)) {
+					$fdata[$fname] = $fields[$fname];
+				}
+				else
+				{
+					$fdata[$fname] = null;  // for now
+				}
+			}
+			if ($model->save($fdata)){
+				$id = $model->getState($name . '.id');
+			}
+			else
+			{
+				JLog::add(
+					'Malformed json at line ' . $lineNum. ' : ' .
+					implode("\n", $model->getErrors()),
+					JLog::WARNING, 'jerror');
+			}
+		}
+		else
+		{
+			JLog::add(
+				'Malformed json at line ' . $lineNum. ' : ' . var_dump($form->getErrors()),
+				JLog::WARNING, 'jerror');
+		}
+
+		// restore app input
+		$app->input = $savedInput;
+		return $id;
+	}
+
+
 	public function import($fpath)
 	{
 		$id_map = array();
+		$article_model = null;
+		$app = JFactory::getApplication();
 
 		foreach ($this->iterdata($fpath) as  $data) {
+			$fpath = $name = $model = null;
 
 			// get type
-			// get id
+			switch ($data["type"])
+			{
+				case "article":
+					if ($article_model == null)
+					{
+						require_once JPATH_ADMINISTRATOR . '/components/com_content/models/article.php';
+						$article_model = new ContentModelArticle();
+					}
+					$model = $article_model;
+					$name = "article";
+					$fpath = JPATH_ADMINISTRATOR . '/components/com_content/models/forms/article.xml';
+
+					break;
+			}
+			$id = $this->createContent($data, $name, $model, $fpath);
+
+			JLog::add('Created ' . $id . ' !', JLog::WARNING, 'jerror');
+
+			break; // for now, TESTING
+
 
 		}
 		JLog::add('Not implemented !', JLog::WARNING, 'jerror');
