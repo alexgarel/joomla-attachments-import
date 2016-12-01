@@ -10,6 +10,7 @@ defined('_JEXEC') or die;
 jimport('joomla.log.log');
 
 use Joomla\Input\Input;
+
 /**
  * Attachments import model
  *
@@ -34,6 +35,14 @@ class AttachmentsimportModelAttachmentsimport extends JModelLegacy
 	 */
 	protected $_context = 'com_installer.install';
 
+	/**
+	 * iter over json data in a file and return each interpreted jsons
+	 *
+	 * @param $fpath : path to the file with one json dict per line
+	 *
+	 * @return : iterator returning a mapping
+	 *     each mapping also contains the line number in _linenum for logging purpose
+	 */
 	protected function iterdata($fpath) {
 		// check file exists
 		if (!file_exists($fpath)) {
@@ -44,7 +53,7 @@ class AttachmentsimportModelAttachmentsimport extends JModelLegacy
 		$handle = fopen($fpath, 'r');
 		$lineNum = 0;
 		$blank = array(null);
-		do
+		do  // iterate over file lines
 		{
 			$data = false;
 			$entry = fgets($handle);
@@ -64,6 +73,15 @@ class AttachmentsimportModelAttachmentsimport extends JModelLegacy
 		} while ($entry);
 	}
 
+	/**
+	 * create content of type model from the data
+	 *
+	 * @param $data is a mapping containing entries as they would be given to the form
+	 * @param $name is the content name (eg. "article")
+	 * @param $fpath is the path to the form xml that will be used to validate data
+	 *
+	 * @return id of the created content
+	 */
 	public function createContent($data, $name, $model, $fpath)
 	{
 		$id = null;
@@ -71,11 +89,15 @@ class AttachmentsimportModelAttachmentsimport extends JModelLegacy
 		# FIXME
 		$fields["catid"] = 2;
 
+		// to create the content we will use Joomla functions
+		// but we need to trick the app input, because there is no way to do otherwise
+
 		// trick app input
 		$savedInput = $app->input;
 		$contentSource = array();
 		$app->input = new Input($contentSource);  // source & options
-		$app->input->set("task", "save");
+		$app->input->set("task", "save");  // the action
+
 		// use a form to validate and get all values
 		$form = new JForm($name);
 		$form->loadFile($fpath);
@@ -83,6 +105,7 @@ class AttachmentsimportModelAttachmentsimport extends JModelLegacy
 
 		if ($form->validate($fields))
 		{
+			// retrieve processed data from form
 			$fdata = array();
 			foreach ($form->getFieldSet() as $field) {
 				$fname = $field->name;
@@ -94,21 +117,26 @@ class AttachmentsimportModelAttachmentsimport extends JModelLegacy
 					$fdata[$fname] = null;  // for now
 				}
 			}
+			// create the content
 			if ($model->save($fdata)){
+				// get the id
 				$id = $model->getState($name . '.id');
 			}
 			else
 			{
+				// error while creatitng content
 				JLog::add(
-					'Malformed json at line ' . $lineNum. ' : ' .
+					'Can\'t create content from data at line ' . $lineNum. ' : ' .
 					implode("\n", $model->getErrors()),
 					JLog::WARNING, 'jerror');
 			}
 		}
 		else
 		{
+			// validation error
 			JLog::add(
-				'Malformed json at line ' . $lineNum. ' : ' . var_dump($form->getErrors()),
+				'Validation error for json at line ' . $lineNum .
+				' : ' . var_dump($form->getErrors()),
 				JLog::WARNING, 'jerror');
 		}
 
@@ -118,13 +146,20 @@ class AttachmentsimportModelAttachmentsimport extends JModelLegacy
 	}
 
 
-	public function import($fpath)
+	/**
+	 * Create content from data description as json contained in a file, on per line
+	 *
+	 * this is the main action.
+	 *
+	 * @param $json_path : path to the file containing data
+	 **/
+	public function import($json_path)
 	{
 		$id_map = array();
 		$article_model = null;
 		$app = JFactory::getApplication();
 
-		foreach ($this->iterdata($fpath) as  $data) {
+		foreach ($this->iterdata($json_path) as  $data) {
 			$fpath = $name = $model = null;
 
 			// get type
